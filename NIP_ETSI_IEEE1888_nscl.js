@@ -1,0 +1,259 @@
+"use strict";
+
+/* external modules */
+// http API from nodejs
+var http = require('http');
+// os API from nodejs
+var os = require('os');
+// express web framework
+var express = require('express');
+
+var Lazy = require("lazy");
+
+/* internal modules */
+// provides dIa primitives
+var openmtc = require('openmtc');
+var XIA = openmtc.interfaces.xIa;
+// maps primitives to http
+var HttpClient = openmtc.transport.http.client;
+
+// configuration file for NSCL
+var nscl = openmtc.config_nscl.scl;
+
+// logging
+var logger = openmtc.config_nscl.log4js.getLogger('[nip]');
+
+var config = {
+  //host: '161.200.90.70',
+  host: '172.24.3.36',
+  port: '1000',
+  notificationResource: '/notify',
+  appID: 'nip'
+};
+
+/* we want to subscribe for data from container in application below */
+var targetApplicationID = 'NIPA_IEEE1888';
+//var targetApplicationID = 'GIPA_XBAnnc';
+//var targetApplicationID = 'SmartMeter';
+/* contactURI used in subscription */
+var contactURI = 'http://' + config.host + ':' + config.port;
+var sys = require('sys');
+var console = require('console');
+
+/* express */
+var app = express();
+
+var nscls = {};
+
+var export_write = require('./export_write_fetch');
+
+/* express configuration */
+app.configure(function () {
+  'use strict';
+  app.use(express.bodyParser());
+  app.use(express.cookieParser());
+  app.use(express.session({
+    secret: 'verysecret'
+  }));
+  app.use(express.methodOverride());
+});
+
+/* web server (dIa) */
+var dIaServer = http.createServer(app);
+dIaServer.listen(config.port);
+
+/* event channel */
+/*var eventChannel = require('socket.io').listen(dIaServer);
+
+eventChannel.sockets.on('connection', function (socket) {
+  'use strict';
+  logger.info('socket browser connected');
+  socket.on('echo', function (echo_data) {
+    logger.info('Echo data: ' + echo_data);
+    eventChannel.sockets.emit('echo-back', 'this is from server-' + echo_data);
+  });
+});*/
+
+//some helper methods to decode contentInstance data
+function parseB64Json(s) {
+  logger.info("Parsing: " + s + " - " + new Buffer(s, 'base64').toString('utf8'));
+  return JSON.parse(new Buffer(s, 'base64').toString('utf8'));
+}
+
+function getRepresentation(o) {
+  //console.log("GetRepresentation");
+  //console.log(o);
+  if (o.representation.contentType !== 'application/json') {
+    logger.error('no json.');
+    throw new Exception("no json");
+  }
+  return JSON.parse(new Buffer(o.representation.$t, 'base64').toString('utf8'));
+}
+
+function getNotificationData(req) {
+    //console.log("getNotificationData: ");
+    //console.log(req.body);
+	return getRepresentation(req.body.notify);
+}
+
+//create client for dIa interface
+//generic communication module
+var httpClient = new HttpClient(config);
+
+//dIa interface
+var dIaClient = new XIA(nscl.uri, httpClient, 'dIa');
+
+function handleContent(nscl, container, content) {
+	var parseId = container.id.split('_');
+	//var containerId = parseId.join('/');
+
+	var pointset = parseId[0]+'/'+parseId.slice(1,parseId.length-3).join('_')+'/'+parseId.slice(parseId.length-3,parseId.length-1).join('/')
+	var point = pointset + '/' + parseId[parseId.length-1]  + '/pir'    
+	//console.log(pointset);
+	console.log(point, content.pir.value);
+	export_write.write(pointset, point, content.pir.value);
+	console.log("Handled content");
+
+}
+function handleContainer(nscl, container) {
+	if (nscl.containers[container.id] !== undefined) {
+		console.log("Container " + container.id + " of " + nscl.sclId + " is known.");
+		return;
+	}
+
+	console.log("Handling new container " + container.id + " of " + nscl.sclId);
+
+	container.data = [];
+	container.containerId = container.id;
+	container.sclId = nscl.sclId;
+
+	nscl.containers[container.id] = container;
+
+
+	var notifyPath = config.notificationResource + "/" + nscl.sclId + "/" + container.id;
+   	var notifyUri = contactURI + notifyPath;
+
+	app.post(notifyPath, function(req, res) {
+		var representation = getNotificationData(req);
+		handleContent(nscl, container, representation);
+		res.send(200);
+	});
+	/*
+	console.log("subscribe");
+	
+	dIaClient.requestIndication('CREATE', null, nscl.link + '/applications/' + targetApplicationID + '/containers/' + container.id + '/contentInstances/subscriptions', { 
+		subscription: {
+			contact: notifyUri, filterCriteria: {attributeAccessor: 'latest/content'}
+		}
+	}).on('STATUS_CREATED', function (data) {
+		'use strict';
+		logger.info('subscribed to content of ' + nscl.sclId + '/' + container.id + ' (' + notifyUri + ')');
+	});*/
+
+	console.log("retri");
+
+    //Now that we are subscribed and will receive changes in the contentInstances collection,
+    //we can retrieve any contentInstances that already existed before we made the subscription
+	dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications/' + targetApplicationID + '/containers/' + container.id + '/contentInstances'+'/latest/content').on('STATUS_OK',
+		 function(data) {
+			handleContent(nscl, container, data);
+		});
+}
+
+function handleContainers(nscl, containers) {
+	console.log("Handling containers: ");
+	console.log(containers.containerCollection.namedReference);
+	containers.containerCollection.namedReference.forEach(function(container) {
+		handleContainer(nscl, container);
+	});
+	console.log("Handled containers.");
+}
+
+function handleApplications(nscl, applications) {
+	if (nscl.initialized)
+		return;
+
+    console.log("handling applications: ");
+    console.log(applications);
+
+	applications.applicationCollection.namedReference.forEach(function(application) {
+		if (application.id == targetApplicationID) {
+			nscl.initialized = true;
+			initNSCL(nscl);
+			return false;
+		}	
+	});
+}
+
+function initNSCL(nscl) {
+	var notifyPath = config.notificationResource + "/" + nscl.sclId;
+   	var notifyUri = contactURI + notifyPath;
+	app.post(notifyPath, function(req, res) {
+		var representation = getNotificationData(req);
+		handleContainers(nscl, representation.containers);
+		res.send(200);
+	});
+
+	console.log("---------------------------------------------------");
+	/*
+	dIaClient.requestIndication('CREATE', null, nscl.link + '/applications/' + targetApplicationID + '/containers/subscriptions', { 
+		subscription: {
+			contact: notifyUri
+		}
+	}).on('STATUS_CREATED', function (data) {
+		'use strict';
+		logger.info('subscribed to containers of ' + nscl.sclId + ' (' + notifyUri + ')');
+	});
+	*/
+	console.log("---------------------------------------------------");
+	console.log("get containers for " + nscl.sclId);
+
+	dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications/' + targetApplicationID + '/containers').on('STATUS_OK',
+		 function(data) {
+			console.log("Got containers:");
+			console.log(data.containers);
+			handleContainers(nscl, data.containers);
+		});
+}
+
+function handleNSCL(nscl) {
+	if (nscls[nscl.sclId] !== undefined) {
+		console.debug("NSCLS " + nscl.sclId + " is already known.");
+		return;
+	}
+
+	console.log("Handling new NSCL " + nscl.sclId + " (" + nscl.link + ")");
+
+	nscl.containers = {};
+	nscl.initialized = false;
+	nscls[nscl.sclId] = nscl;
+
+    var notifyPath = config.notificationResource +  "/" + nscl.sclId + "/apps";
+	var notifyUri = contactURI + notifyPath;
+	app.post(notifyPath, function(req, res) {
+        console.log("new app.");
+        console.log(req.body);
+		var representation = getNotificationData(req);
+        console.log("Have applications representation: ");
+        console.log(representation);
+		handleApplications(nscl, representation.applications);
+		res.send(200);
+	});
+	/*
+	dIaClient.requestIndication('CREATE', null, nscl.link + '/applications/subscriptions', { 
+		subscription: {
+			contact: notifyUri
+		}
+	}).on('STATUS_CREATED', function (data) {
+		'use strict';
+		logger.info('subscribed to applications of ' + nscl.sclId + ' ( notifyPath=' + notifyPath + " notifyUri=" + notifyUri + ')');
+	});
+	*/
+	dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications').on('STATUS_OK',
+		 function(data) {
+			handleApplications(nscl, data.applications);
+		});
+}
+
+handleNSCL({"sclId": nscl.id, "link": nscl.dia.uri});
+

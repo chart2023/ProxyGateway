@@ -1,0 +1,60 @@
+//http://stackoverflow.com/questions/14018269/how-to-post-xml-data-in-node-js-http-request
+//http://www.json.org/js.html
+
+function fetch(callback) {
+var http = require('http'); //require the 'http' module
+var parser = require('xml2json');
+var body = '<?xml version="1.0" encoding="utf-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body><ns2:queryRQ xmlns:ns2="http://soap.fiap.org/"><transport xmlns="http://gutp.jp/fiap/2009/11/"><header><query id="9eed9de4-1c48-4b08-a41d-dac067fc1c0d" type="storage"><key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/north/lab_telecommunication/z1/sensor1/monitor/temperature"  attrName="time" select="maximum" /><key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/north/lab_telecommunication/z1/sensor1/monitor/illuminance"  attrName="time" select="maximum" /></query></header></transport></ns2:queryRQ></soapenv:Body></soapenv:Envelope>';
+var postRequest = {
+    host: "192.168.90.6",
+    path: "/axis2/services/FIAPStorage",
+    port: 80,
+    method: "POST",
+    headers: {
+        'Content-Type': 'text/xml charset=UTF-8',
+        'SOAPAction': 'http://soap.fiap.org/query',
+        'Content-Length': Buffer.byteLength(body)
+    }
+};
+
+var req = http.request( postRequest, function ( res ) {
+	  //console.log('STATUS: ' + res.statusCode);
+	  //console.log('HEADERS: ' + JSON.stringify(res.headers));
+	res.setEncoding('utf8');
+	  res.on('data', function (chunk) {
+		    //console.log('BODY: ' + chunk);
+		    var json = parser.toJson(chunk);//convert xml to json; returns a string containing the JSON structure by default	
+			//console.log(json);
+			var idc=[];
+			var timec=[];	    
+			var valuec=[];	
+
+			myData = JSON.parse(json, function (key, value) {
+
+		    if (key==='id'&& value[0]==='h'){
+		        idc.push(value);
+		    }
+		    else if (key==='time'){
+		        timec.push(value);
+		    }
+		    else if (key==='$t'){
+		        valuec.push(value);
+		    }
+		    });
+			//console.log(idc[0]);
+			//console.log(timec[0]);
+			//console.log(valuec[0]);
+			callback(idc[0],timec[0],valuec[0]);
+		    });
+
+});
+req.on('error', function(e) {
+	  console.log('problem with request: ' + e.message);
+	});
+
+//write data to request body
+req.write( body );
+req.end();
+}
+
+exports.fetch = fetch;

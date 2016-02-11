@@ -1,0 +1,19 @@
+{
+  "containers": {
+    "creationTime": "2016-02-10T10:51:35+00:00",
+    "lastModifiedTime": "2016-02-10T10:51:35+00:00",
+    "containerCollection": {
+      "namedReference": []
+    },
+    "containerAnncCollection": {
+      "namedReference": []
+    },
+    "locationContainerCollection": {
+      "namedReference": []
+    },
+    "locationContainerAnncCollection": {
+      "namedReference": []
+    },
+    "subscriptionsReference": "/m2m/applications/NIPA_IEEE1888/containers/subscriptions"
+  }
+}

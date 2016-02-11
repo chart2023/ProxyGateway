@@ -1,0 +1,2 @@
+#! /usr/bin/env node
+require("../NIP_IEEE1888_ETSI");

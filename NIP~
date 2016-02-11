@@ -1,0 +1,3 @@
+#!/bin/bash
+# NIP script
+while true; do node NIP.js; sleep 1d; done
