@@ -47,7 +47,8 @@ var app = express();
 var export_write = require('./export_write_fetch');
 
 /* express configuration */
-app.configure(function () {
+//app.configure(function () {
+app.get('/', function (req, res) {
   'use strict';
   app.use(express.bodyParser());
   app.use(express.cookieParser());
