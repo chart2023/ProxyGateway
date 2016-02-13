@@ -11,7 +11,7 @@ var util = require('util');                     // helper module
 var http = require('http');                     // http
 
 /* internal modules --------------------------------------------------------- */
-var NIP = require('../lib/NIP');             // gateway IP library
+var NIP = require('/NIP');             // gateway IP library
 var openmtc = require('openmtc');
 
 /* configuration ------------------------------------------------------------ */
