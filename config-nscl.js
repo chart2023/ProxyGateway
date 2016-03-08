@@ -1,8 +1,8 @@
+nsclserv = require('./ipnscl.js');
 var log4js = require('log4js');
 /** SCL --------------------------------------------------------------------- */
 var scl = {};
-//scl.host = '161.200.90.85';
-scl.host = '10.0.20.59';
+scl.host = nsclserv.iplocal;
 //scl.host = 'localhost';
 scl.id = 'openmtc-nscl';
 
@@ -41,7 +41,7 @@ var db = {};
 db.driver = './db/mongodb';
 
 // mongodb
-db.host = '10.0.20.60';
+db.host = nsclserv.iplocal;
 db.port = 27017;
 db.dropDB = 'true';
 db.database = 'm2m_nscl';
