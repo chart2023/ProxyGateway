@@ -1,4 +1,4 @@
-nsclserv = require('./ipnscl.js');
+nsclserv = require('./ipserv.js');
 var log4js = require('log4js');
 /** SCL --------------------------------------------------------------------- */
 var scl = {};
