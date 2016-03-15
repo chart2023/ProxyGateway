@@ -1,19 +1,18 @@
 //http://stackoverflow.com/questions/14018269/how-to-post-xml-data-in-node-js-http-request
-nipserv = require('/OpenMTC-Chula/openmtc/settings/ipserv.js');
+nipserv = require('/OpenMTC-Chula/openmtc/settings/ipnscl.js');
 var http = require('http'); //require the 'http' module
 var uuid=require("node-uuid");
 var body_trap = '<?xml version="1.0" encoding="utf-8"?>' +
 '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">'+
  '<soapenv:Body><ns2:queryRQ xmlns:ns2="http://soap.fiap.org/"><transport xmlns="http://gutp.jp/fiap/2009/11/">'+
-'<header><query id="'+uuid.v4()+'" type="stream" ttl="600" callbackData="http://"nipserv.ipnip 	callbackControl="http://172.24.3.36">'
-+'<key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/north/room_server/z1/sensor1/monitor/temperature"  attrName="value" trap="changed" />'
-//+'<key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/north/room_server/z1/sensor1/monitor/humidity"  attrName="value" trap="changed" />'
-//+'<key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/north/room_server/z1/sensor1/monitor/illuminance"  attrName="value" trap="changed" />'
-+'<key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/north/room_server/z1/sensor1/monitor/pir"  attrName="value" trap="changed" />'
+'<header><query id="'+uuid.v4()+'" type="stream" ttl="600" callbackData="http://161.200.90.78:8081" 	callbackControl="http://161.200.90.78:8081">'
++'<key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/corridor/elevetorfront/z1/sensor1/monitor/pir"  attrName="value" trap="changed" />'
++'<key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/corridor/elevetorfront/z1/sensor2/monitor/pir"  attrName="value" trap="changed" />'
++'<key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/corridor/walkingpath/z1/sensor1/monitor/pir"  attrName="value" trap="changed" />'
+//+'<key id="http://bems.ee.eng.chula.ac.th/eng4/fl13/lab_telecommunication/telecommunication/z1/sensor1/monitor/pir"  attrName="value" trap="changed" />'
 +'</query></header></transport></ns2:queryRQ>'+'</soapenv:Body></soapenv:Envelope>';
 
 var postRequest = {
-//	    host: "192.168.90.6",
 	    host: "161.200.90.122",
 	    path: "/axis2/services/FIAPStorage",
 	    port: 80,
