@@ -1,5 +1,4 @@
 "use strict";
-
 /* external modules */
 // http API from nodejs
 var http = require('http');
@@ -7,9 +6,8 @@ var http = require('http');
 var os = require('os');
 // express web framework
 var express = require('express');
-
 var Lazy = require("lazy");
-
+var moment = require('moment');
 /* internal modules */
 // provides dIa primitives
 var openmtc = require('openmtc');
@@ -25,7 +23,7 @@ var logger = openmtc.config_nscl.log4js.getLogger('[nip]');
 
 var config = {
   //host: '161.200.90.70',
-  host: '172.24.3.36',
+  host: '10.0.20.90',
   port: '1000',
   notificationResource: '/notify',
   appID: 'nip'
@@ -45,7 +43,7 @@ var app = express();
 
 var nscls = {};
 
-var export_write = require('./export_write_fetch');
+var export_write = require('./export_write');
 
 /* express configuration */
 app.configure(function () {
@@ -104,14 +102,31 @@ var httpClient = new HttpClient(config);
 var dIaClient = new XIA(nscl.uri, httpClient, 'dIa');
 
 function handleContent(nscl, container, content) {
-	var parseId = container.id.split('_');
-	//var containerId = parseId.join('/');
-
-	var pointset = parseId[0]+'/'+parseId.slice(1,parseId.length-3).join('_')+'/'+parseId.slice(parseId.length-3,parseId.length-1).join('/')
-	var point = pointset + '/' + parseId[parseId.length-1]  + '/pir'    
-	//console.log(pointset);
-	console.log(point, content.pir.value);
-	export_write.write(pointset, point, content.pir.value);
+console.log(container, content);
+		var parseId = container.id.split('_');
+	//var fiap_id_prefix 	= "http://bems.ee.eng.chula.ac.th/eng4/fl13/";   
+	var fiap_id_prefix 	= "http://xhat1.test.chula.ac.th/NIP_IEEE1888/";       
+	var pointset = fiap_id_prefix+parseId[0]+'/'+parseId.slice(1,parseId.length-3).join('_')+'/'+parseId.slice(parseId.length-3,parseId.length-1).join('/')
+	var pir_point_id = pointset + '/' + 'monitor/pir';	
+	var ill_point_id = pointset + '/' + 'monitor/illuminance';
+	var temp_point_id = pointset + '/' + 'monitor/temperature';
+	var hum_point_id = pointset + '/' + 'monitor/humidity';       	
+	var time=moment().format();
+	//console.log(Object.keys(frame.analogSamples).length);
+	if(content.temperature!==undefined){		
+		var fiap_element = [  
+		 [pir_point_id, content.pir.value, time],
+		// [ill_point_id, content.illuminance.value, time],
+		 [temp_point_id, content.temperature.value, time],
+		 //[hum_point_id, content.humidity.value, time]
+		];
+	}else{
+		var fiap_element = [[pir_point_id, content.pir.value, time]];			
+	}
+ 
+	console.log(pointset, fiap_element);
+	//console.log(point, content.pir.value);
+	export_write.write(pointset, fiap_element);	
 	console.log("Handled content");
 
 }
@@ -138,7 +153,7 @@ function handleContainer(nscl, container) {
 		handleContent(nscl, container, representation);
 		res.send(200);
 	});
-	/*
+	
 	console.log("subscribe");
 	
 	dIaClient.requestIndication('CREATE', null, nscl.link + '/applications/' + targetApplicationID + '/containers/' + container.id + '/contentInstances/subscriptions', { 
@@ -148,16 +163,16 @@ function handleContainer(nscl, container) {
 	}).on('STATUS_CREATED', function (data) {
 		'use strict';
 		logger.info('subscribed to content of ' + nscl.sclId + '/' + container.id + ' (' + notifyUri + ')');
-	});*/
+	});
 
 	console.log("retri");
 
     //Now that we are subscribed and will receive changes in the contentInstances collection,
     //we can retrieve any contentInstances that already existed before we made the subscription
-	dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications/' + targetApplicationID + '/containers/' + container.id + '/contentInstances'+'/latest/content').on('STATUS_OK',
+	/*dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications/' + targetApplicationID + '/containers/' + container.id + '/contentInstances'+'/latest/content').on('STATUS_OK',
 		 function(data) {
 			handleContent(nscl, container, data);
-		});
+		});*/
 }
 
 function handleContainers(nscl, containers) {
@@ -195,7 +210,7 @@ function initNSCL(nscl) {
 	});
 
 	console.log("---------------------------------------------------");
-	/*
+	
 	dIaClient.requestIndication('CREATE', null, nscl.link + '/applications/' + targetApplicationID + '/containers/subscriptions', { 
 		subscription: {
 			contact: notifyUri
@@ -204,16 +219,16 @@ function initNSCL(nscl) {
 		'use strict';
 		logger.info('subscribed to containers of ' + nscl.sclId + ' (' + notifyUri + ')');
 	});
-	*/
+	
 	console.log("---------------------------------------------------");
 	console.log("get containers for " + nscl.sclId);
 
-	dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications/' + targetApplicationID + '/containers').on('STATUS_OK',
+	/*dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications/' + targetApplicationID + '/containers').on('STATUS_OK',
 		 function(data) {
 			console.log("Got containers:");
 			console.log(data.containers);
 			handleContainers(nscl, data.containers);
-		});
+		});*/
 }
 
 function handleNSCL(nscl) {
@@ -232,14 +247,14 @@ function handleNSCL(nscl) {
 	var notifyUri = contactURI + notifyPath;
 	app.post(notifyPath, function(req, res) {
         console.log("new app.");
-        console.log(req.body);
+        //console.log(req);
 		var representation = getNotificationData(req);
         console.log("Have applications representation: ");
-        console.log(representation);
+       console.log(representation);
 		handleApplications(nscl, representation.applications);
 		res.send(200);
 	});
-	/*
+	
 	dIaClient.requestIndication('CREATE', null, nscl.link + '/applications/subscriptions', { 
 		subscription: {
 			contact: notifyUri
@@ -248,12 +263,11 @@ function handleNSCL(nscl) {
 		'use strict';
 		logger.info('subscribed to applications of ' + nscl.sclId + ' ( notifyPath=' + notifyPath + " notifyUri=" + notifyUri + ')');
 	});
-	*/
-	dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications').on('STATUS_OK',
+	
+/*	dIaClient.requestIndication('RETRIEVE', null, nscl.link + '/applications').on('STATUS_OK',
 		 function(data) {
 			handleApplications(nscl, data.applications);
-		});
+		});*/
 }
 
 handleNSCL({"sclId": nscl.id, "link": nscl.dia.uri});
-
