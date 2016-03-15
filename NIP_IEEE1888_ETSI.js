@@ -58,7 +58,8 @@ var server = http.createServer(function (req, res) {
     } catch (er) {
       console.log(er);
     }
-
+//console.log(idc);
+//console.log(valuec)
     // write back something interesting to the user:
     
 	  res.writeHead(200, {  'Content-Type': 'text/xml charset=UTF-8',
@@ -76,7 +77,7 @@ var server = http.createServer(function (req, res) {
 			j++
 		}	
 		json_data['timestamp']=time;
-	 	var parseId = idc[0].split('/');
+	 	var parseId = idc[idc.length-1].split('/');
 		var containerId = parseId.slice(parseId.length-6,parseId.length-1).join('_');
 		console.log(json_data);
 		console.log(containerId);
