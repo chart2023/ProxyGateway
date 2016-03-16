@@ -1,3 +1,4 @@
+ipserv = require('/OpenMTC-Chula/openmtc/settings/ipserv.js');
 "use strict";
 /* external modules */
 // http API from nodejs
@@ -23,7 +24,7 @@ var logger = openmtc.config_nscl.log4js.getLogger('[nip]');
 
 var config = {
   //host: '161.200.90.70',
-  host: '10.0.20.90',
+  host: ipserv.ipnip,
   port: '1000',
   notificationResource: '/notify',
   appID: 'nip'
